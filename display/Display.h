@@ -30,4 +30,10 @@ void selectMenu(int selectedItem);
 // newValue  	- Der neue Wert, der angezeigt werden soll
 void updateValue(int newValue);
 
+
+
+// Abhängig vom aktuellen Zustand,
+// leuchten verschiedener LEDs
+void updateLedState(char state);
+
 #endif /* DISPLAY_H */
