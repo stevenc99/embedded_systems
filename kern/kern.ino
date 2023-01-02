@@ -40,7 +40,7 @@ void setup() {
 }
 
 // Wird ausgeführt, wenn Gerät ausgeschalten wird
-void shutOff() {
+void shutDown() {
     // TODO
 }
 
