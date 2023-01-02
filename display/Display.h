@@ -1,5 +1,5 @@
-#ifndef DISPLAY
-#define DISPLAY
+#ifndef DISPLAY_H
+#define DISPLAY_H
 
 // starte Gerät
 // Ausgabe: "Gerät startet"

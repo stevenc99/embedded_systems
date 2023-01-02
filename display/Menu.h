@@ -1,5 +1,5 @@
-#ifndef MENU
-#define MENU
+#ifndef MENU_H
+#define MENU_H
 
 // Wenn der Benutzer einen neuen Wert speichern möchte
 // type 	- welcher Wert aktualisiert wird (PWM, Delay, ...)
