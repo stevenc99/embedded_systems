@@ -1,19 +1,12 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-// starte Gerät
-// Ausgabe: "Gerät startet"
-// pwm 	 - geladener PWM-Wert
-// delay - geladener Delay-Wert
-// v 	 - geladener Spannungswert
-void systemStart(int pwm, int delay, int v);
+#include <Arduino.h>
 
-// Gerät Einsatzbereit
-// Ausgabe: "Gerät Einsatzbereit"
-void systemReady();
+enum params = {pwm, delay, u};
 
-// Zeige Dashboard
-void showDashboard();
+// Gibt Text auf dem Display aus
+void display(char text[]);
 
 // Zeige alle verfügbaren Menüpunkte
 // selectedItem - Markiere (visuell) den aktuellen Menüpunkt
@@ -26,14 +19,24 @@ void showMenu(int selectedItem);
 // 		- 3 = Delay
 void selectMenu(int selectedItem);
 
-// Wenn der Benutzer einen Wert ändert (inkrementiert bzw. dekrementiert)
-// newValue  	- Der neue Wert, der angezeigt werden soll
-void updateValue(int newValue);
+// Ändern der Anzeige nach Inkrement/Dekrement
+void updateVoltage();
 
+void updateDelay();
 
+void updatePWM();
+
+// Inkrementiere einen bestimmten Parameter
+void incrementValue(params parameter);
+
+void decrementValue(params parameter);
 
 // Abhängig vom aktuellen Zustand,
 // leuchten verschiedener LEDs
 void updateLedState(char state);
 
+// Starte Schweißvorgang
+void startWelding();
+// Stoppe Schweißvorgang
+void stopWelding();
 #endif /* DISPLAY_H */
