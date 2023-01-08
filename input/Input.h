@@ -3,8 +3,20 @@
 
 #include <Arduino.h>
 
-#define ROTATE_LEFT 1
-#define ROTATE_RIGHT 2
-#define CONFIRM 3
+/****************************************
+ * Wenn im Menu:
+ * - 1 bis 3 selektieren der Menüpunkte
+ * - * zum bestätigen
+ * 
+ * Wenn Parameter-Wert geändert wird:
+ * - 0 bis 9 Eingabe der neuen Werte
+ * - * zum bestätigen
+ * 
+ * Wenn im Schweißprozess
+ * - * zum beenden
+ ****************************************/
+
+// get pressed Key
+char getKey();
 
 #endif /* INPUT_H */
