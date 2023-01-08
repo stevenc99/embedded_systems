@@ -3,40 +3,22 @@
 
 #include <Arduino.h>
 
-enum params = {pwm, delay, u};
+// Setup Display
+void setupDisplay();
 
-// Gibt Text auf dem Display aus
-void display(char text[]);
+// Show the menu and highlight
+// the selected menu item
+void showMenu(byte selectedItem);
 
-// Zeige alle verfügbaren Menüpunkte
-// selectedItem - Markiere (visuell) den aktuellen Menüpunkt
-void showMenu(int selectedItem);
+// Go into the selected menu item
+// (pwm | delay)
+void selectMenu(byte selectedItem, uint8_t value);
 
-// Gehe in den Menüpunkt rein
-// selectedItem - Der aktuell ausgewählte Menüpunkt
-// 		- 1 = Start Welding
-// 		- 2 = PWM
-// 		- 3 = Delay
-void selectMenu(int selectedItem);
+// Go into the selected menu item
+// (start welding)
+void selectMenu(byte selectedItem, uint8_t pwm, uint8_t delay);
 
-// Ändern der Anzeige nach Inkrement/Dekrement
-void updateVoltage();
+// Update the value of row 2
+void updateValue(uint8_t value)
 
-void updateDelay();
-
-void updatePWM();
-
-// Inkrementiere einen bestimmten Parameter
-void incrementValue(params parameter);
-
-void decrementValue(params parameter);
-
-// Abhängig vom aktuellen Zustand,
-// leuchten verschiedener LEDs
-void updateLedState(char state);
-
-// Starte Schweißvorgang
-void startWelding();
-// Stoppe Schweißvorgang
-void stopWelding();
 #endif /* DISPLAY_H */
