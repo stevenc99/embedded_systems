@@ -3,20 +3,34 @@
 
 #include <Arduino.h>
 
-/****************************************
- * Wenn im Menu:
- * - 1 bis 3 selektieren der Menüpunkte
- * - * zum bestätigen
- * 
- * Wenn Parameter-Wert geändert wird:
- * - 0 bis 9 Eingabe der neuen Werte
- * - * zum bestätigen
- * 
- * Wenn im Schweißprozess
- * - * zum beenden
- ****************************************/
+#define PIN_CLK A2 // anpassen
+#define PIN_DT A3 // anpassen
+#define PIN_SW A4  // anpassen
 
-// get pressed Key
-char getKey();
+class Input {
+  public:
+    enum class Direction {
+      NOROTATION = 0,
+      CLOCKWISE = 1,
+      COUNTERCLOCKWISE = -1
+    };
+
+    enum class ButtonState {
+      NOACTION = 0,
+      PRESSED = 1,
+      RELEASED = 2
+    };
+
+    // ----- Constructor -----
+    Input();
+
+    // retrieve the current Button State
+    ButtonState getButtonState();
+
+    // simple retrieve of the direction the knob was rotated last time. 0 = No rotation, 1 = Clockwise, -1 = Counter Clockwise
+    Direction getDirection();
+
+  private:
+};
 
 #endif /* INPUT_H */
