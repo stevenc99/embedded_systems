@@ -1,7 +1,20 @@
 #include <EEPROM.h>
 #include "input/Input.h"
 #include "display/Display.h"
-#include "timing/Timing.h"
+
+/*********************************************************
+ * Instances
+**********************************************************/
+
+// A pointer to the dynamic created input instance.
+// This will be done in setup()
+Input *inputInstance = nullptr;
+Input *displayInstance = nullptr;
+
+
+/*********************************************************
+ * system state
+**********************************************************/
 
 // bit0 (LED)
 // - 0, wenn Gerät nicht Einsatzbereit (aus oder startet)
@@ -20,26 +33,35 @@
 // - 1, wenn Error
 byte current_state = 0b00000000;
 
+
+/*********************************************************
+ * menu state
+**********************************************************/
+
 // Zustandskontrolle für das Menu
 // 0, wenn "pwm" ausgewählt
-// 1, wenn "delay" ausgewählt
-// 2, wenn "start welding" ausgewählt
-byte selectedItem = 0;
+// 1, wenn "gasnachlaufzeit" ausgewählt
+// 2, wenn "gasvorlaufzeit" ausgewählt
+// 3, wenn "start welding" ausgewählt
+byte menuPointerPosition = 0;
 
 // Zustandskontrolle für das Menu
 // - false, wenn nichts ausgewählt
 // - true, wenn man sich im aktuell selektierten Menubereich befindet
 bool activeMenuItem = false;
 
+
+/*********************************************************
+ * configuration
+**********************************************************/
+
 // struct für die Konfigurationswerte
 struct configuration {
   uint8_t pwm;
-  uint8_t delay;
+  uint8_t gas_follow_up_time; // gasnachlaufzeit
+  uint8_t gas_lead_time;      // gasvorlaufzeit
 };
 configuration config;
-
-// neuer Wert für die Konfigurationswerte
-String newValue;
 
 // Lade Konfigurationen vom EEPROM
 configuration loadConfiguration() {
@@ -51,127 +73,88 @@ void saveConfiguration() {
   EEPROM.put(0, config);
 }
 
-// Navigation des Menus
-void menuNavigation(char key) {
-  // Menu Navigation
-  switch (key) {
-    case '1':
-      /* pwm */
-      selectedItem = 0;
-      showMenu(selectedItem);
-      break;
-    case '2':
-      /* delay */
-      selectedItem = 1;
-      showMenu(selectedItem);
-      break;
-    case '3':
-      /* start welding */
-      selectedItem = 2;
-      showMenu(selectedItem);
-      break;
-    case '*':
-      /* select current item */
-      switch (selectedItem) {
-        case 0:
-          /* pwm */
-          selectMenu(selectedItem, config.pwm);
-          break;
-        case 1:
-          /* delay */
-          selectMenu(selectedItem, config.delay);
-          break;
-        case 2:
-          /* start welding */
-          selectMenu(selectedItem, config.pwm, config.delay);
-          break;
-      } // switch(selectedItem)
-      activeMenuItem = true;
-      break;
-    case '#':
-      /* shut down */
-      shutDown();
-      break;
-  } // switch(key)
-}
 
-// Submenu Navigation
-void submenuNavigation(char key) {
-  if (key == '*') {
-    // go back and save
-    // TODO prüfe ob es ein zulässiger Wert ist
-    switch (selectedItem) {
-      case 0:
-        /* pwm */
-        config.pwm = (uint8_t)newValue.toInt();
-        break;
-      case 1:
-        /* delay */
-        config.delay = (uint8_t)newValue.toInt();
-        break;
-      case 2:
-        /* stop welding */
-        break;
-    } // switch(selectedItem)
-    activeMenuItem = false;
-    showMenu(selectedItem);
-  } else if (key == '#') {
-    /* go back without saving */
-    activeMenuItem = false;
-    showMenu(selectedItem);
-  } else {
-    // append new value
-    if (selectedItem != 2) { // Während des Schweißens keine Werte ändern (falls doch -> anpassen)
-      if (newValue.length() == 3) {
-        /* reset */
-        newValue = "";
-      }
-      newValue += key;
-      updateValue(newValue);
-    }
-  }
-}
-
-// Stelle sicheren Zustand wieder her
-// und schalte das Gerät aus
-void shutDown() {
-  /* TODO
-   input des on-off-switches auswerten
-   aktuelle pwm = 0 setzen
-   schutzgas ventil schließen
-   Konfiguration speichern
-  */
-}
+/*********************************************************
+ * setup & loop
+**********************************************************/
 
 void setup() {
   Serial.begin(9600);
-  newValue.reserve(2); // maximum input characters is 3, change if needed
   config = loadConfiguration();
-  setupDisplay();
+
+  displayInstance = new Display();
+  inputInstance = new Input();
+
   current_state = current_state | 0b00000001; // Gerät Einsatzbereit
-  showMenu(selectedItem);
+  displayInstance->showMenu(menuPointerPosition);
 }
 
 void loop() {
-  char key = getKey();
-  if (key) {
-    if (activeMenuItem == false) {
-      menuNavigation(key);
-    } else { // activeMenuItem == true
-      submenuNavigation(key);
-      if (selectedItem == 2 && (current_state & 0b00000010) == false) {
-        /* wenn Schweiß-Modus aktiviert werden soll */
-        bool activated = startWelding(config.pwm, config.delay);
-        if (activated) {
-          current_state = current_state | 0b00000010; // Schweiß-Modus aktiviert
+  // prüfe auf Eingabe
+  Input::ButtonState buttonState = inputInstance->getButtonState();
+  Input::Direction directionState = inputInstance->getDirection();
+  
+  buttonPressed(buttonState);
+  rotDirection(directionState);
+}
+
+
+/*********************************************************
+ * functions
+**********************************************************/
+
+void buttonPressed(Input::ButtonState buttonState) {
+  if (!activeMenuItem) {
+    /* enter submenu */
+    displayInstance->showSubmenu(menuPointerPosition);
+  } else {
+    /* go back */
+    displayInstance->showMenu(menuPointerPosition);
+  }
+}
+
+void rotDirection(Input::Direction directionState) {
+  if (!activeMenuItem) {
+    /* Menu Navigation */
+    switch (directionState) {
+      case Input::Direction::COUNTERCLOCKWISE: /* go up */
+        menuPointerPosition = (menuPointerPosition-1)%Display::MenuState::NUMBER_OF_STATES;
+        break;
+      case Input::Direction::CLOCKWISE: /* go down */
+        menuPointerPosition = (menuPointerPosition+1)%Display::MenuState::NUMBER_OF_STATES;
+        break;
+      default:
+        break;
+    } // switch(directionState)
+    displayInstance->showMenu(menuPointerPosition);
+  } else {
+    /* Increment/Decrement values */
+    switch (menuPointerPosition) {
+      case 0:
+        /* pwm */
+        config.pwm += directionState;
+        displayInstance->showSubmenu(menuPointerPosition, config.pwm);
+        break;
+      case 1:
+        /* gasnachlaufzeit */
+        config.gas_follow_up_time += directionState;
+        displayInstance->showSubmenu(menuPointerPosition, config.gas_follow_up_time);
+        break;
+      case 2:
+        /* gasvorlaufzeit */
+        config.gas_lead_time += directionState;
+        displayInstance->showSubmenu(menuPointerPosition, config.gas_lead_time);
+        break;
+      case 3:
+        /* Schweiß-Modus deaktivieren */
+        if (directionState != 0) {
+          current_state = current_state & 0b11111101;
+          activeMenuItem = false;
+          displayInstance->showMenu(menuPointerPosition);
         }
-      } else if ((current_state & 0b00000010) == true && ((key == '#') || (key == '*'))) {
-        /* wenn Schweiß-Modus deaktiviert werden soll */
-        bool deactivated = stopWelding();
-        if (deactivated) {
-          current_state = current_state & 0b11111101; // Schweiß-Modus deaktiviert
-        }
-      }
-    }
+        break;
+      default:
+        break;
+    } // switch(menuPointerPosition)
   }
 }
