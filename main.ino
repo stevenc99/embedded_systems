@@ -1,14 +1,20 @@
-#include "display/Display.h"
-//#include "input.h"
-#include "EEPROM.h"
+#include <EEPROM.h>
+#include "src/input/Input.h"
+#include "src/display/Display.h"
 
-//#define DEBUG
+/*********************************************************
+ * Instances
+**********************************************************/
 
-struct configuration {
-  uint8_t pwm;
-  uint8_t delay;
-  uint8_t u;
-};
+// A pointer to the dynamic created input instance.
+// This will be done in setup()
+Input *inputInstance = nullptr;
+Display *displayInstance = nullptr;
+
+
+/*********************************************************
+ * system state
+**********************************************************/
 
 // bit0 (LED)
 // - 0, wenn Gerät nicht Einsatzbereit (aus oder startet)
@@ -25,59 +31,130 @@ struct configuration {
 // bit4 (LED)
 // - 0, wenn kein Error
 // - 1, wenn Error
-//char currentState = 0b00000000;
-configuration config = {
-  128,
-  100,
-  230
+byte current_state = 0b00000000;
+
+
+/*********************************************************
+ * menu state
+**********************************************************/
+
+// Zustandskontrolle für das Menu
+// 0, wenn "pwm" ausgewählt
+// 1, wenn "gasnachlaufzeit" ausgewählt
+// 2, wenn "gasvorlaufzeit" ausgewählt
+// 3, wenn "start welding" ausgewählt
+byte menuPointerPosition = 0;
+
+// Zustandskontrolle für das Menu
+// - false, wenn nichts ausgewählt
+// - true, wenn man sich im aktuell selektierten Menubereich befindet
+bool activeMenuItem = false;
+
+
+/*********************************************************
+ * configuration
+**********************************************************/
+
+// struct für die Konfigurationswerte
+struct configuration {
+  uint8_t pwm;
+  uint8_t gas_follow_up_time; // gasnachlaufzeit
+  uint8_t gas_lead_time;      // gasvorlaufzeit
 };
+configuration config;
 
-// Wird 1x zum Systemstart ausgeführt
-// Ist blockierend
-void setup() {
-  Serial.begin(9600);
-  while (!Serial) {
-    ;  // wait for serial port to connect. Needed for native USB port only
-  }
-  char message[] = "Lade Konfiguration";
-  display(message);
-
-  config = loadConfiguration();
-#ifdef DEBUG
-  Serial.println("Read custom object from EEPROM: ");
-  Serial.println(config2.pwm);
-  Serial.println(config2.delay);
-  Serial.println(config2.u);
-#endif
-
-  char message2[] = "Einsatzbereit";
-  display(message2);
-  displayConfig
-}
-
-void loop() {
-  // TODO
-}
-
-// speichert momentan eingestellten Werte für pwm, delay und u
-// pwm:       0 .. 255
-// delay(ms): 0 .. 255 -> (multiplizieren für höherere Delays)
-// u(V):      0 .. 255
-void saveConfiguration(configuration config) {
-  // An EEPROM write takes 3.3 ms to complete.
-  EEPROM.put(0, config);
-}
-
-// Konfiguration steht immer an Adresse 0
+// Lade Konfigurationen vom EEPROM
 configuration loadConfiguration() {
   return EEPROM.get(0, config);
 }
 
-void shutDown() {
-  /* TODO
-   input des on-off-switches auswerten
-   aktuelle pwm = 0 setzen
-   schutzgas ventil schließen
-   Konfiguration speichern
-  */
+// Speichere Konfigurationen in den EEPROM
+void saveConfiguration() {
+  EEPROM.put(0, config);
+}
+
+
+/*********************************************************
+ * setup & loop
+**********************************************************/
+
+void setup() {
+  Serial.begin(9600);
+  //config = loadConfiguration();
+
+  displayInstance = new Display();
+  inputInstance = new Input();
+
+  current_state = current_state | 0b00000001; // Gerät Einsatzbereit
+  displayInstance->showMenu(menuPointerPosition);
+}
+
+void loop() {
+  // prüfe auf Eingabe
+  Input::ButtonState buttonState = inputInstance->getButtonState();
+  Input::Direction directionState = inputInstance->getDirection();
+  
+  buttonPressed(buttonState);
+  rotDirection(directionState);
+}
+
+
+/*********************************************************
+ * functions
+**********************************************************/
+
+void buttonPressed(Input::ButtonState buttonState) {
+  if (!activeMenuItem) {
+    /* enter submenu */
+    displayInstance->showSubmenu(menuPointerPosition, 0);
+  } else {
+    /* go back */
+    displayInstance->showMenu(menuPointerPosition);
+  }
+}
+
+void rotDirection(Input::Direction directionState) {
+  if (!activeMenuItem) {
+    /* Menu Navigation */
+    switch (directionState) {
+      case Input::Direction::COUNTERCLOCKWISE: /* go up */
+        menuPointerPosition = (menuPointerPosition-1)%(int)Display::MenuState::NUMBER_OF_STATES;
+        break;
+      case Input::Direction::CLOCKWISE: /* go down */
+        menuPointerPosition = (menuPointerPosition+1)%(int)Display::MenuState::NUMBER_OF_STATES;
+        break;
+      default:
+        break;
+    } // switch(directionState)
+    displayInstance->showMenu(menuPointerPosition);
+  } else {
+    /* Increment/Decrement values */
+    switch (menuPointerPosition) {
+      case 0:
+        /* pwm */
+        config.pwm += (byte)directionState;
+        displayInstance->showSubmenu(menuPointerPosition, config.pwm);
+        break;
+      case 1:
+        /* gasnachlaufzeit */
+        config.gas_follow_up_time += (byte)directionState;
+        displayInstance->showSubmenu(menuPointerPosition, config.gas_follow_up_time);
+        break;
+      case 2:
+        /* gasvorlaufzeit */
+        config.gas_lead_time += (byte)directionState;
+        displayInstance->showSubmenu(menuPointerPosition, config.gas_lead_time);
+        break;
+      case 3:
+        /* Schweiß-Modus deaktivieren */
+        if (directionState != Input::Direction::NOROTATION) {
+          current_state = current_state & 0b11111101;
+          activeMenuItem = false;
+          displayInstance->showMenu(menuPointerPosition);
+        }
+        break;
+      default:
+        break;
+    } // switch(menuPointerPosition)
+  }
 }
