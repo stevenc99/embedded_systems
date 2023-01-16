@@ -1,6 +1,7 @@
 #include <EEPROM.h>
-#include "input/Input.h"
-#include "display/Display.h"
+#include "src/input/Input.h"
+#include "src/display/Display.h"
+#include "src/timing/timing.h"
 
 /*********************************************************
  * Instances
@@ -9,7 +10,7 @@
 // A pointer to the dynamic created input instance.
 // This will be done in setup()
 Input *inputInstance = nullptr;
-Input *displayInstance = nullptr;
+Display *displayInstance = nullptr;
 
 
 /*********************************************************
@@ -80,7 +81,7 @@ void saveConfiguration() {
 
 void setup() {
   Serial.begin(9600);
-  config = loadConfiguration();
+  //config = loadConfiguration();
 
   displayInstance = new Display();
   inputInstance = new Input();
@@ -106,7 +107,7 @@ void loop() {
 void buttonPressed(Input::ButtonState buttonState) {
   if (!activeMenuItem) {
     /* enter submenu */
-    displayInstance->showSubmenu(menuPointerPosition);
+    displayInstance->showSubmenu(menuPointerPosition, 0);
   } else {
     /* go back */
     displayInstance->showMenu(menuPointerPosition);
@@ -118,10 +119,10 @@ void rotDirection(Input::Direction directionState) {
     /* Menu Navigation */
     switch (directionState) {
       case Input::Direction::COUNTERCLOCKWISE: /* go up */
-        menuPointerPosition = (menuPointerPosition-1)%Display::MenuState::NUMBER_OF_STATES;
+        menuPointerPosition = (menuPointerPosition-1)%(int)Display::MenuState::NUMBER_OF_STATES;
         break;
       case Input::Direction::CLOCKWISE: /* go down */
-        menuPointerPosition = (menuPointerPosition+1)%Display::MenuState::NUMBER_OF_STATES;
+        menuPointerPosition = (menuPointerPosition+1)%(int)Display::MenuState::NUMBER_OF_STATES;
         break;
       default:
         break;
@@ -132,22 +133,22 @@ void rotDirection(Input::Direction directionState) {
     switch (menuPointerPosition) {
       case 0:
         /* pwm */
-        config.pwm += directionState;
+        config.pwm += (byte)directionState;
         displayInstance->showSubmenu(menuPointerPosition, config.pwm);
         break;
       case 1:
         /* gasnachlaufzeit */
-        config.gas_follow_up_time += directionState;
+        config.gas_follow_up_time += (byte)directionState;
         displayInstance->showSubmenu(menuPointerPosition, config.gas_follow_up_time);
         break;
       case 2:
         /* gasvorlaufzeit */
-        config.gas_lead_time += directionState;
+        config.gas_lead_time += (byte)directionState;
         displayInstance->showSubmenu(menuPointerPosition, config.gas_lead_time);
         break;
       case 3:
         /* Schweiß-Modus deaktivieren */
-        if (directionState != 0) {
+        if (directionState != Input::Direction::NOROTATION) {
           current_state = current_state & 0b11111101;
           activeMenuItem = false;
           displayInstance->showMenu(menuPointerPosition);
