@@ -1,7 +1,6 @@
 #include <EEPROM.h>
 #include "src/input/Input.h"
 #include "src/display/Display.h"
-#include "src/timing/timing.h"
 
 /*********************************************************
  * Instances
