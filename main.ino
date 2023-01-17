@@ -1,15 +1,6 @@
-#include <EEPROM.h>
 #include "src/input/Input.h"
 #include "src/display/Display.h"
-
-/*********************************************************
- * Instances
-**********************************************************/
-
-// A pointer to the dynamic created input instance.
-// This will be done in setup()
-Input *inputInstance = nullptr;
-Display *displayInstance = nullptr;
+#include "src/config/Config.h"
 
 
 /*********************************************************
@@ -29,6 +20,9 @@ Display *displayInstance = nullptr;
 // - 0, wenn Drahtvorschub inaktiv
 // - 1, wenn Drahtvorschub aktiv
 // bit4 (LED)
+// - 0, wenn bearbeitung inaktiv
+// - 1, wenn bearbeitung aktiv
+// bit5 (LED)
 // - 0, wenn kein Error
 // - 1, wenn Error
 byte current_state = 0b00000000;
@@ -39,38 +33,57 @@ byte current_state = 0b00000000;
 **********************************************************/
 
 // Zustandskontrolle für das Menu
-// 0, wenn "pwm" ausgewählt
-// 1, wenn "gasnachlaufzeit" ausgewählt
-// 2, wenn "gasvorlaufzeit" ausgewählt
-// 3, wenn "start welding" ausgewählt
 byte menuPointerPosition = 0;
-
-// Zustandskontrolle für das Menu
-// - false, wenn nichts ausgewählt
-// - true, wenn man sich im aktuell selektierten Menubereich befindet
-bool activeMenuItem = false;
 
 
 /*********************************************************
  * configuration
 **********************************************************/
 
-// struct für die Konfigurationswerte
-struct configuration {
-  uint8_t pwm;
-  uint8_t gas_follow_up_time; // gasnachlaufzeit
-  uint8_t gas_lead_time;      // gasvorlaufzeit
-};
-configuration config;
+Config config;
 
-// Lade Konfigurationen vom EEPROM
-configuration loadConfiguration() {
-  return EEPROM.get(0, config);
+
+/*********************************************************
+ * functions
+**********************************************************/
+
+void buttonPressed(bool buttonState) {
+  if (buttonState) {
+    if ((current_state & 0b00000010) = true) { // Wenn Schweiß-Modus aktiviert
+      // TODO Schweiß-Modus deaktivieren
+      // TODO LEDs aktualisieren
+      current_state = current_state & 0b11111101;
+      showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+    } else if (menuPointerPosition%MENU_MAIN_LENGTH == 0) { // Wenn Schweiß-Modus deaktiviert
+      // TODO Schweiß-Modus aktivieren
+      // TODO LEDs aktualisieren
+      current_state = current_state | 0b00000010;
+      menuPointerPosition = 4; // zeige "stop welding"
+      showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+    }
+    
+    if ((current_state & 0b00010000) = true) { // Wenn bearbeiten aktiviert
+      // bearbeiten deaktivieren
+      // TODO LEDs aktualisieren
+      current_state = current_state & 0b11101111;
+    } else if (menuPointerPosition%MENU_MAIN_LENGTH != 0) { // Wenn bearbeiten deaktiviert
+      // bearbeiten aktivieren
+      // TODO LEDs aktualisieren
+      current_state = current_state | 0b00010000;
+    }
+  }
 }
 
-// Speichere Konfigurationen in den EEPROM
-void saveConfiguration() {
-  EEPROM.put(0, config);
+void rotDirection(int directionState) {
+  if (((current_state & 0b00010010) = false) && (directionState != 0)) {
+    /* navigiere durch das Menu */
+    menuPointerPosition += directionState;
+    showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+  } else if (((current_state & 0b00010000) = true) && (directionState != 0)) {
+    /* Increment/Decrement values */
+    config.setValue(menuPointerPosition%MENU_MAIN_LENGTH, directionState);
+    showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+  }
 }
 
 
@@ -82,79 +95,19 @@ void setup() {
   Serial.begin(9600);
   //config = loadConfiguration();
 
-  displayInstance = new Display();
-  inputInstance = new Input();
+  makeDisplayReady();
+  setupInput();
 
   current_state = current_state | 0b00000001; // Gerät Einsatzbereit
-  displayInstance->showMenu(menuPointerPosition);
+  // TODO LEDs aktualisieren
+  showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
 }
 
 void loop() {
   // prüfe auf Eingabe
-  Input::ButtonState buttonState = inputInstance->getButtonState();
-  Input::Direction directionState = inputInstance->getDirection();
+  bool buttonState = getButtonState();
+  int directionState = getDirection();
   
   buttonPressed(buttonState);
   rotDirection(directionState);
-}
-
-
-/*********************************************************
- * functions
-**********************************************************/
-
-void buttonPressed(Input::ButtonState buttonState) {
-  if (!activeMenuItem) {
-    /* enter submenu */
-    displayInstance->showSubmenu(menuPointerPosition, 0);
-  } else {
-    /* go back */
-    displayInstance->showMenu(menuPointerPosition);
-  }
-}
-
-void rotDirection(Input::Direction directionState) {
-  if (!activeMenuItem) {
-    /* Menu Navigation */
-    switch (directionState) {
-      case Input::Direction::COUNTERCLOCKWISE: /* go up */
-        menuPointerPosition = (menuPointerPosition-1)%(int)Display::MenuState::NUMBER_OF_STATES;
-        break;
-      case Input::Direction::CLOCKWISE: /* go down */
-        menuPointerPosition = (menuPointerPosition+1)%(int)Display::MenuState::NUMBER_OF_STATES;
-        break;
-      default:
-        break;
-    } // switch(directionState)
-    displayInstance->showMenu(menuPointerPosition);
-  } else {
-    /* Increment/Decrement values */
-    switch (menuPointerPosition) {
-      case 0:
-        /* pwm */
-        config.pwm += (byte)directionState;
-        displayInstance->showSubmenu(menuPointerPosition, config.pwm);
-        break;
-      case 1:
-        /* gasnachlaufzeit */
-        config.gas_follow_up_time += (byte)directionState;
-        displayInstance->showSubmenu(menuPointerPosition, config.gas_follow_up_time);
-        break;
-      case 2:
-        /* gasvorlaufzeit */
-        config.gas_lead_time += (byte)directionState;
-        displayInstance->showSubmenu(menuPointerPosition, config.gas_lead_time);
-        break;
-      case 3:
-        /* Schweiß-Modus deaktivieren */
-        if (directionState != Input::Direction::NOROTATION) {
-          current_state = current_state & 0b11111101;
-          activeMenuItem = false;
-          displayInstance->showMenu(menuPointerPosition);
-        }
-        break;
-      default:
-        break;
-    } // switch(menuPointerPosition)
-  }
 }
