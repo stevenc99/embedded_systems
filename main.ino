@@ -1,4 +1,5 @@
-#include <EEPROM.h>
+#include "src/Configuration.h"
+
 #include "src/input/Input.h"
 #include "src/display/Display.h"
 
@@ -52,35 +53,12 @@ bool activeMenuItem = false;
 
 
 /*********************************************************
- * configuration
-**********************************************************/
-
-// struct für die Konfigurationswerte
-struct configuration {
-  uint8_t pwm;
-  uint8_t gas_follow_up_time; // gasnachlaufzeit
-  uint8_t gas_lead_time;      // gasvorlaufzeit
-};
-configuration config;
-
-// Lade Konfigurationen vom EEPROM
-configuration loadConfiguration() {
-  return EEPROM.get(0, config);
-}
-
-// Speichere Konfigurationen in den EEPROM
-void saveConfiguration() {
-  EEPROM.put(0, config);
-}
-
-
-/*********************************************************
  * setup & loop
 **********************************************************/
 
 void setup() {
   Serial.begin(9600);
-  //config = loadConfiguration();
+  //config.Load();
 
   displayInstance = new Display();
   inputInstance = new Input();
@@ -93,10 +71,17 @@ void loop() {
   // prüfe auf Eingabe
   Input::ButtonState buttonState = inputInstance->getButtonState();
   Input::Direction directionState = inputInstance->getDirection();
-  
+
   buttonPressed(buttonState);
   rotDirection(directionState);
 }
+
+
+/*********************************************************
+ * configuration
+**********************************************************/
+
+Configuration config;
 
 
 /*********************************************************
@@ -132,18 +117,18 @@ void rotDirection(Input::Direction directionState) {
     switch (menuPointerPosition) {
       case 0:
         /* pwm */
-        config.pwm += (byte)directionState;
-        displayInstance->showSubmenu(menuPointerPosition, config.pwm);
+	config.SetPWM( config.GetPWM() + (byte)directionState);
+        displayInstance->showSubmenu(menuPointerPosition, config.GetPWM());
         break;
       case 1:
         /* gasnachlaufzeit */
-        config.gas_follow_up_time += (byte)directionState;
-        displayInstance->showSubmenu(menuPointerPosition, config.gas_follow_up_time);
+	config.SetGasFollowUpTime( config.GetGasFollowUpTime() + (byte)directionState);
+        displayInstance->showSubmenu(menuPointerPosition, config.GetGasFollowUpTime());
         break;
       case 2:
         /* gasvorlaufzeit */
-        config.gas_lead_time += (byte)directionState;
-        displayInstance->showSubmenu(menuPointerPosition, config.gas_lead_time);
+	config.SetGasLeadTime( config.GetGasLeadTime() + (byte)directionState);
+        displayInstance->showSubmenu(menuPointerPosition, config.GetGasLeadTime());
         break;
       case 3:
         /* Schweiß-Modus deaktivieren */
