@@ -106,7 +106,7 @@ void welding() {
     prev_sys_time = millis();
   }
   if ( ((current_state & 0b00000010) == true) && ((current_state & 0b00001000) == false) ) { // Wenn Schweiß-Modus aktiviert & Drahtvorschub inaktiv
-    if ( (millis() - prev_sys_time) >= (config.GetGasFollowUpTime() * 100) ) { // warte x sec
+    if ( (millis() - prev_sys_time) >= (config.getValue(2) * 100) ) { // warte x sec (gasvorlauf)
       // starte Drahtvorschub
       // TODO PWM
       current_state = current_state | 0b00001000;
@@ -124,7 +124,7 @@ void welding() {
     prev_sys_time = millis();
   }
   if ( ((current_state & 0b00000010) == false) && ((current_state & 0b00000100) == true) ) { // Wenn Schweiß-Modus deaktiviert & Ventil offen
-    if ( (millis() - prev_sys_time) >= (config.GetGasLeadTime() * 100) ) { // warte x sec
+    if ( (millis() - prev_sys_time) >= (config.getValue(3) * 100) ) { // warte x sec (gasnachlauf)
       // schließe Ventil
       current_state = current_state & 0b11111011;
       updateLEDs(current_state);
