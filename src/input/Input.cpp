@@ -1,44 +1,116 @@
-// https://peppe8o.com/ky-040-and-arduino-rotatory-encoder-wiring-and-code/
-// https://github.com/mathertel/RotaryEncoder/blob/master/src/RotaryEncoder.cpp
 #include "Input.h"
 
-int lastStateCLK;
-int currentStateCLK;
-unsigned long lastButtonPress = 0;
+// Variables to debounce
+long time_of_last_rot = 0;
+int delay_of_debounce = 100;
 
-// ----- Initialization and Default Values -----
+long button_time_of_last_rot = 0;
 
-Input::Input() {
-  // Setup the input pins and turn on pullup resistor
-  pinMode(PIN_CLK, INPUT);   // Set encoder pins as inputs
-  pinMode(PIN_DT, INPUT);
-  pinMode(PIN_SW, INPUT_PULLUP);
+// direction state
+int rot_direction = 0;
+int prev_rot_direction;
 
-  lastStateCLK = digitalRead(PIN_CLK);  // Read the initial state of CLK
-} // Input()
+// button state
+bool button_state = false;
+bool prev_button_state;
 
-Input::ButtonState Input::getButtonState() {
-  int btnState = digitalRead(PIN_SW);
-  if (btnState == LOW) {
-    if (millis() - lastButtonPress > 50) { // zum entprellen
-      Serial.println("Button pressed!");
+// Store current pin state
+int current_clk;
+int current_dt;
+
+// Store previous pin state
+int prev_clk;
+int prev_dt;
+
+// counter variable for serial output
+int counter;
+
+void encoder() {
+    if ((prev_clk == 0) && (prev_dt == 1)) {
+        if ((current_clk == 1) && (current_dt == 0)) {
+            /* CLOCKWISE */
+            rot_direction = 1;
+        }
+        if ((current_clk == 1) && (current_dt == 1)) {
+            /* COUNTERCLOCKWISE */
+            rot_direction = -1;
+        }
     }
-    lastButtonPress = millis();
-  }
-} // getButtonState()
-
-Input::Direction Input::getDirection() {
-  Input::Direction ret = Direction::NOROTATION;
-  currentStateCLK = digitalRead(PIN_CLK);  // Read the current state of CLK
-  if (currentStateCLK != lastStateCLK  && currentStateCLK == 1) {
-    if (digitalRead(PIN_DT) != currentStateCLK) {
-      ret = Direction::COUNTERCLOCKWISE;
-    } else {
-      ret = Direction::CLOCKWISE;
+    if ((prev_clk == 1) && (prev_dt == 0)) {
+        if ((current_clk == 0) && (current_dt == 1)) {
+            /* CLOCKWISE */
+            rot_direction = 1;
+        }
+        if ((current_clk == 0) && (current_dt == 0)) {
+            /* COUNTERCLOCKWISE */
+            rot_direction = -1;
+        }
     }
-    Serial.print("Direction: ");
-    Serial.print(ret);
-    return ret;
-  }
-  lastStateCLK = currentStateCLK;
-} // getDirection()
+
+    if ((prev_clk == 1) && (prev_dt == 1)) {
+        if ((current_clk == 0) && (current_dt == 1)) {
+            /* CLOCKWISE */
+            rot_direction = 1;
+        }
+        if ((current_clk == 0) && (current_dt == 0)) {
+            /* COUNTERCLOCKWISE */
+            rot_direction = -1;
+        }
+    }
+    if ((prev_clk == 0) && (prev_dt == 0)) {
+        if ((current_clk == 1) && (current_dt == 0)) {
+            /* CLOCKWISE */
+            rot_direction = 1;
+        }
+        if ((current_clk == 1) && (current_dt == 1)) {
+            /* COUNTERCLOCKWISE */
+            rot_direction = -1;
+        }
+    }
+}
+
+void isrRotary() {
+    current_clk = digitalRead(PIN_CLK);
+    current_dt = digitalRead(PIN_DT);
+
+    if ((millis() - time_of_last_rot) > delay_of_debounce) {
+        encoder();
+        counter += rot_direction;
+        //Serial.print("counter - "); fürs debuggen
+        //Serial.println(counter);
+        time_of_last_rot = millis();
+    }
+
+    prev_clk = current_clk;
+    prev_dt = current_dt;
+}
+
+void isrButton() {
+  if ((millis() - button_time_of_last_rot) > delay_of_debounce) {
+        button_state = true;
+    }
+}
+
+int getDirection() {
+    prev_rot_direction = rot_direction;
+    rot_direction = 0;
+    return prev_rot_direction;
+}
+
+bool getButtonState() {
+    prev_button_state = button_state;
+    button_state = false;
+    return prev_button_state;
+}
+
+void setupInput() {
+    pinMode(PIN_CLK, INPUT);
+    pinMode(PIN_DT, INPUT);
+    pinMode(PIN_SW, INPUT_PULLUP);
+
+    prev_clk = digitalRead(PIN_CLK);
+    prev_dt = digitalRead(PIN_DT);
+
+    attachInterrupt(digitalPinToInterrupt(PIN_CLK), isrRotary, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_SW), isrButton, FALLING);
+}
