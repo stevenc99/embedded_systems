@@ -93,7 +93,7 @@ void rotDirection(int directionState) {
 
 void setup() {
   Serial.begin(9600);
-  //config = loadConfiguration();
+  //config.Load();
 
   makeDisplayReady();
   setupInput();
