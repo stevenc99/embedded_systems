@@ -2,6 +2,9 @@
 #include "src/display/Display.h"
 #include "src/config/Config.h"
 
+// PIN-Belegung für die LEDs
+const int LED_PINS[] = {0, 1, 2, 3, 4, 5}; // anpassen
+long prev_sys_time;
 
 /*********************************************************
  * system state
@@ -47,42 +50,87 @@ Config config;
  * functions
 **********************************************************/
 
+void updateLEDs(byte state) {
+  for (byte i = 0; i < 5; i++) {
+    if ((state & (0b00000001 << i)) == true) {
+      digitalWrite(LED_PINS[i], HIGH);
+    } else {
+      digitalWrite(LED_PINS[i], LOW);
+    }
+  }
+}
+
 void buttonPressed(bool buttonState) {
   if (buttonState) {
-    if ((current_state & 0b00000010) = true) { // Wenn Schweiß-Modus aktiviert
-      // TODO Schweiß-Modus deaktivieren
-      // TODO LEDs aktualisieren
+    if ((current_state & 0b00000010) == true) { // Wenn Schweiß-Modus aktiviert
+      // Schweiß-Modus deaktivieren
       current_state = current_state & 0b11111101;
-      showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+      // showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH)); // TODO show "waiting"?
     } else if (menuPointerPosition%MENU_MAIN_LENGTH == 0) { // Wenn Schweiß-Modus deaktiviert
-      // TODO Schweiß-Modus aktivieren
-      // TODO LEDs aktualisieren
+      // Schweiß-Modus aktivieren
       current_state = current_state | 0b00000010;
-      menuPointerPosition = 4; // zeige "stop welding"
-      showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+      updateLEDs(current_state);
+      // showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH)); // TODO show "waiting"?
     }
     
-    if ((current_state & 0b00010000) = true) { // Wenn bearbeiten aktiviert
+    if ((current_state & 0b00010000) == true) { // Wenn bearbeiten aktiviert
       // bearbeiten deaktivieren
-      // TODO LEDs aktualisieren
       current_state = current_state & 0b11101111;
+      updateLEDs(current_state);
     } else if (menuPointerPosition%MENU_MAIN_LENGTH != 0) { // Wenn bearbeiten deaktiviert
       // bearbeiten aktivieren
-      // TODO LEDs aktualisieren
       current_state = current_state | 0b00010000;
+      updateLEDs(current_state);
     }
   }
 }
 
 void rotDirection(int directionState) {
-  if (((current_state & 0b00010010) = false) && (directionState != 0)) {
+  if (((current_state & 0b00010010) == false) && (directionState != 0)) {
     /* navigiere durch das Menu */
     menuPointerPosition += directionState;
     showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
-  } else if (((current_state & 0b00010000) = true) && (directionState != 0)) {
+  } else if (((current_state & 0b00010000) == true) && (directionState != 0)) {
     /* Increment/Decrement values */
     config.setValue(menuPointerPosition%MENU_MAIN_LENGTH, directionState);
     showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+  }
+}
+
+void welding() {
+  /* starte Prozess */
+  if ( ((current_state & 0b00000010) == true) && ((current_state & 0b00000100) == false) ) { // Wenn Schweiß-Modus aktiviert & Ventil geschlossen
+    // öffne Ventil
+    current_state = current_state | 0b00000100;
+    updateLEDs(current_state);
+    prev_sys_time = millis();
+  }
+  if ( ((current_state & 0b00000010) == true) && ((current_state & 0b00001000) == false) ) { // Wenn Schweiß-Modus aktiviert & Drahtvorschub inaktiv
+    if ( (millis() - prev_sys_time) >= (config.GetGasFollowUpTime() * 100) ) { // warte x sec
+      // starte Drahtvorschub
+      // TODO PWM
+      current_state = current_state | 0b00001000;
+      updateLEDs(current_state);
+      menuPointerPosition = 4; // zeige "stop welding"
+      showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+    }
+  }
+  
+  /* stoppe Prozess */
+  if ( ((current_state & 0b00000010) == false) && ((current_state & 0b00001000) == true) ) { // Wenn Schweiß-Modus deaktiviert & Drahtvorschub aktiv
+    // stoppe Drahtvorschub
+    current_state = current_state & 0b11110111;
+    updateLEDs(current_state | 0b00000010); // LED 1 später ausschalten
+    prev_sys_time = millis();
+  }
+  if ( ((current_state & 0b00000010) == false) && ((current_state & 0b00000100) == true) ) { // Wenn Schweiß-Modus deaktiviert & Ventil offen
+    if ( (millis() - prev_sys_time) >= (config.GetGasLeadTime() * 100) ) { // warte x sec
+      // schließe Ventil
+      current_state = current_state & 0b11111011;
+      updateLEDs(current_state);
+      menuPointerPosition = 0; // zeige "start welding"
+      showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+    }
   }
 }
 
@@ -93,14 +141,16 @@ void rotDirection(int directionState) {
 
 void setup() {
   Serial.begin(9600);
-  //config.Load();
+
+  config.Load();
 
   makeDisplayReady();
   setupInput();
 
   current_state = current_state | 0b00000001; // Gerät Einsatzbereit
-  // TODO LEDs aktualisieren
   showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
+
+  updateLEDs(current_state);
 }
 
 void loop() {
@@ -110,4 +160,6 @@ void loop() {
   
   buttonPressed(buttonState);
   rotDirection(directionState);
+
+  welding();
 }
