@@ -146,6 +146,13 @@ void setup() {
 
   makeDisplayReady();
   setupInput();
+  
+  pinMode(LED_PINS[0], OUTPUT);
+  pinMode(LED_PINS[1], OUTPUT);
+  pinMode(LED_PINS[2], OUTPUT);
+  pinMode(LED_PINS[3], OUTPUT);
+  pinMode(LED_PINS[4], OUTPUT);
+  pinMode(LED_PINS[5], OUTPUT);
 
   current_state = current_state | 0b00000001; // Gerät Einsatzbereit
   showMenu(menuPointerPosition%MENU_MAIN_LENGTH, config.getValue(menuPointerPosition%MENU_MAIN_LENGTH));
