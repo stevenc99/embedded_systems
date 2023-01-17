@@ -37,11 +37,11 @@ class Config {
 
         void setValue(uint8_t menuPointerPosition, int v) {
             if (menuPointerPosition == 1) {
-                this->pwm = v;
+                this->pwm += v;
             } else if (menuPointerPosition == 2) {
-                this->gas_follow_up_time = v;
+                this->gas_follow_up_time += v;
             } else if (menuPointerPosition == 3) {
-                this->gas_lead_time = v;
+                this->gas_lead_time += v;
             }
         };
 };
