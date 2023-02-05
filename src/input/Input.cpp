@@ -2,9 +2,10 @@
 
 // Variables to debounce
 long time_of_last_rot = 0;
-int delay_of_debounce = 100;
+long delay_of_debounce_rot = 200;
 
-long button_time_of_last_rot = 0;
+long time_of_last_button = 0;
+long delay_of_debounce_but = 200;
 
 // direction state
 int rot_direction = 0;
@@ -73,7 +74,7 @@ void isrRotary() {
     current_clk = digitalRead(PIN_CLK);
     current_dt = digitalRead(PIN_DT);
 
-    if ((millis() - time_of_last_rot) > delay_of_debounce) {
+    if ((millis() - time_of_last_rot) > delay_of_debounce_rot) {
         encoder();
         counter += rot_direction;
         //Serial.print("counter - "); fürs debuggen
@@ -86,8 +87,9 @@ void isrRotary() {
 }
 
 void isrButton() {
-  if ((millis() - button_time_of_last_rot) > delay_of_debounce) {
+  if ((millis() - time_of_last_button) > delay_of_debounce_but) {
         button_state = true;
+        time_of_last_button = millis();
     }
 }
 

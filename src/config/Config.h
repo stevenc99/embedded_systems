@@ -6,9 +6,9 @@
 
 class Config {
     private:
-        uint8_t pwm = 0;
-        uint8_t gas_follow_up_time = 0; // gasnachlaufzeit
-        uint8_t gas_lead_time = 0;      // gasvorlaufzeit
+        uint8_t pwm;
+        uint8_t gas_follow_up_time; // gasnachlaufzeit
+        uint8_t gas_lead_time;      // gasvorlaufzeit
 
     public:
         void Save();

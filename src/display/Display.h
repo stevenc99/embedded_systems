@@ -3,9 +3,9 @@
 
 #include <Arduino.h>
 
-#define MENU_MAIN_LENGTH 6
+#define MENU_MAIN_LENGTH 5
 
 void makeDisplayReady();
-bool showMenu(int identifier, byte valueNum);
+bool showMenu(int identifier, uint8_t valueNum);
 
 #endif /* DISPLAY_H */

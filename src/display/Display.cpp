@@ -3,13 +3,13 @@
 
 LiquidCrystal_I2C lcd(0x3f, 16, 2);
 
-String menuMain[MENU_MAIN_LENGTH] = {
+String menuMain[6] = {
   "start welding", 
   "pwm values", 
-  "delay value", 
-  "start welding",
-  "stop welding",
-  "save values"
+  "gas fol up time", 
+  "gas lead time",
+  "save values",
+  "stop welding"
 };
 
 void makeDisplayReady()
@@ -19,10 +19,17 @@ void makeDisplayReady()
   lcd.clear();
 }
 
-bool showMenu(int identifier, byte valueNum)
+bool showMenu(int identifier, uint8_t valueNum)
 {  
+  Serial.print("MenuPointerPosition: ");
+  Serial.print(menuMain[identifier]);
+  Serial.print(" - ");
+  Serial.println(identifier);
+  Serial.print("Value: ");
+  Serial.println(valueNum);
+  
   lcd.clear();
-  if(MENU_MAIN_LENGTH > identifier)
+  if(6 > identifier)
   {
     //transformToString(valueNum);
 
