@@ -2,7 +2,6 @@
 #define CONFIG_H
 
 #include <Arduino.h>
-#include <EEPROM.h>
 
 class Config {
     private:

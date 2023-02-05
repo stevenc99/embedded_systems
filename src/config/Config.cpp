@@ -1,4 +1,5 @@
 #include "Config.h"
+#include <EEPROM.h>
 
 // Lade Konfigurationen vom EEPROM
 void Config::Load() {
