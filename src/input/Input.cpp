@@ -2,7 +2,7 @@
 
 // Variables to debounce
 long time_of_last_rot = 0;
-long delay_of_debounce_rot = 100;
+long delay_of_debounce_rot = 200;
 
 long time_of_last_button = 0;
 long delay_of_debounce_but = 200;
