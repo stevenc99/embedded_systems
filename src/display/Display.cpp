@@ -19,8 +19,15 @@ void makeDisplayReady()
   lcd.clear();
 }
 
-bool showMenu(int identifier, byte valueNum)
+bool showMenu(int identifier, uint8_t valueNum)
 {  
+  Serial.print("MenuPointerPosition: ");
+  Serial.print(menuMain[identifier]);
+  Serial.print(" - ");
+  Serial.println(identifier);
+  Serial.print("Value: ");
+  Serial.println(valueNum);
+  
   lcd.clear();
   if(6 > identifier)
   {
